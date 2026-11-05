@@ -62,7 +62,7 @@ async def upload(bot: Client, m: Message):
             line = line.strip()
             if not line:
                 continue
-            # Regex se link aur title alag karein (chahe beech me kitne bhi colons hon)
+            # Multi-colon links ko saaf parse karein
             match = re.search(r"^(.*?)(https?://.*)$", line)
             if match:
                 raw_name = match.group(1).rstrip(":").strip()
@@ -147,91 +147,3 @@ async def upload(bot: Client, m: Message):
                     async with session.get(url, headers={'User-Agent': 'Mozilla/5.0'}) as resp:
                         text = await resp.text()
                         url = re.search(r"(https://.*?playlist.m3u8.*?)\"", text).group(1)
-
-            elif 'videos.classplusapp' in url:
-                url = requests.get(f'https://api.classplusapp.com/cams/uploader/video/jw-signed-url?url={url}').json()['url']
-
-            elif '/master.mpd' in url:
-                id = url.split("/")[-2]
-                url = f"https://d26g5bnklkwsh4.cloudfront.net/{id}/master.m3u8"
-
-            name1 = links[i][0].replace("\t", "").replace(":", " - ").replace("/", "").replace("+", "").strip()
-            clean_title = re.sub(r'[\\/*?:"<>|()]', "", name1).strip()
-            if not clean_title:
-                clean_title = f"File_{count}"
-            name = f"{str(count).zfill(3)} - {clean_title}"
-
-            headers_arg = '--user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" --referer "https://web.classplusapp.com/"'
-
-            if "youtu" in url:
-                ytf = f"b[height<={raw_text2}][ext=mp4]/bv[height<={raw_text2}][ext=mp4]+ba[ext=m4a]/b[ext=mp4]"
-                cmd = f'yt-dlp {headers_arg} --no-check-certificates -f "{ytf}" "{url}" -o "{name}.mp4"'
-            elif "cloudfront.net" in url or ".m3u8" in url:
-                cmd = f'yt-dlp {headers_arg} --no-check-certificates -f "bestvideo[height<={raw_text2}]+bestaudio/best[height<={raw_text2}]/best" "{url}" -o "{name}.mp4"'
-            elif "jw-prod" in url:
-                cmd = f'yt-dlp {headers_arg} --no-check-certificates -o "{name}.mp4" "{url}"'
-            else:
-                ytf = f"b[height<={raw_text2}]/bv[height<={raw_text2}]+ba/b/bv+ba"
-                cmd = f'yt-dlp {headers_arg} --no-check-certificates -f "{ytf}" "{url}" -o "{name}.mp4"'
-
-            try:
-                cc = f'**[{str(count).zfill(3)}]** {clean_title}\n\n**Batch »** {raw_text0}\n**Uploaded By »** {MR}'
-                cc1 = f'**[{str(count).zfill(3)}]** {clean_title}\n\n**Batch »** {raw_text0}\n**Uploaded By »** {MR}'
-
-                if "drive" in url:
-                    try:
-                        ka = await helper.download(url, name)
-                        copy = await bot.send_document(chat_id=m.chat.id, document=ka, caption=cc1)
-                        count += 1
-                        os.remove(ka)
-                        time.sleep(1)
-                    except FloodWait as e:
-                        await m.reply_text(str(e))
-                        time.sleep(e.x)
-                        continue
-
-                elif ".pdf" in url or "static.pw.live" in url:
-                    try:
-                        # Direct clean download for static PDFs
-                        pdf_name = f"{name}.pdf"
-                        r = requests.get(url, allow_redirects=True, timeout=60)
-                        with open(pdf_name, "wb") as f_pdf:
-                            f_pdf.write(r.content)
-
-                        await bot.send_document(chat_id=m.chat.id, document=pdf_name, caption=cc1)
-                        count += 1
-                        if os.path.exists(pdf_name):
-                            os.remove(pdf_name)
-                        time.sleep(1)
-                    except FloodWait as e:
-                        await m.reply_text(str(e))
-                        time.sleep(e.x)
-                        continue
-                    except Exception as err:
-                        await m.reply_text(f"**PDF Download Error:** {str(err)}\n**Name:** {name}\n**Link:** `{url}`")
-                        continue
-
-                else:
-                    Show = f"**⬇️ DOWNLOADING... »**\n\n**Name »** {name}\n**Quality »** {raw_text2}\n\n**URL »** {url}"
-                    prog = await m.reply_text(Show)
-                    res_file = await helper.download_video(url, cmd, name)
-                    filename = str(res_file) if res_file else f"{name}.mp4"
-                    if not os.path.exists(filename) and os.path.exists(f"{name}.mp4"):
-                        filename = f"{name}.mp4"
-                    await prog.delete(True)
-                    await helper.send_vid(bot, m, cc, filename, thumb, name, prog)
-                    count += 1
-                    time.sleep(1)
-
-            except Exception as e:
-                await m.reply_text(
-                    f"**downloading Interrupted**\n{str(e)}\n**Name »** {name}\n**Link »** `{url}`"
-                )
-                continue
-
-    except Exception as e:
-        await m.reply_text(str(e))
-
-    await m.reply_text("**DONE Boss😎**")
-
-bot.run()
