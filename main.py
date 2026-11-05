@@ -56,10 +56,10 @@ async def upload(bot: Client, m: Message):
         content = content.split("\n")
         links = []
         for i in content:
-            if "://" in i:
-                links.append(i.split("://", 1))
+            if ":" in i:
+                links.append(i.split(":", 1))
         os.remove(x)
-    except:
+    except Exception:
         await m.reply_text("**Invalid File Format**")
         if os.path.exists(x):
             os.remove(x)
@@ -113,12 +113,12 @@ async def upload(bot: Client, m: Message):
     await input6.delete(True)
     await editable.delete()
 
-    thumb = input6.text
+    thumb = raw_text6.strip()
     if thumb.startswith("http://") or thumb.startswith("https://"):
         getstatusoutput(f"wget '{thumb}' -O 'thumb.jpg'")
         thumb = "thumb.jpg"
     else:
-        thumb == "no"
+        thumb = "no"
 
     if len(links) == 1:
         count = 1
@@ -128,7 +128,7 @@ async def upload(bot: Client, m: Message):
     try:
         for i in range(count - 1, len(links)):
             V = links[i][1].replace(" ", "").strip()
-            url = "https://" + V
+            url = V if V.startswith("http") else ("https://" + V)
 
             if "visionias" in url:
                 async with ClientSession() as session:
