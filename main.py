@@ -92,23 +92,6 @@ async def upload(bot: Client, m: Message):
     input2: Message = await bot.listen(m.chat.id)
     raw_text2 = input2.text
     await input2.delete(True)
-    try:
-        if raw_text2 == "144":
-            res = "256x144"
-        elif raw_text2 == "240":
-            res = "426x240"
-        elif raw_text2 == "360":
-            res = "640x360"
-        elif raw_text2 == "480":
-            res = "854x480"
-        elif raw_text2 == "720":
-            res = "1280x720"
-        elif raw_text2 == "1080":
-            res = "1920x1080"
-        else:
-            res = "UN"
-    except Exception:
-        res = "UN"
 
     await editable.edit("**Now Enter Author / Credit Name**")
     input3: Message = await bot.listen(m.chat.id)
@@ -164,21 +147,6 @@ async def upload(bot: Client, m: Message):
                 clean_title = f"File_{count}"
             name = f"{str(count).zfill(3)} - {clean_title}"
 
-            if "classplus" in url or "cloudfront" in url:
-                headers_arg = '--force-ipv4 --no-check-certificates --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" --referer "https://web.classplusapp.com/"'
-            else:
-                headers_arg = '--force-ipv4 --no-check-certificates --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"'
-
-            if "youtu" in url:
-                ytf = f"b[height<={raw_text2}][ext=mp4]/bv[height<={raw_text2}][ext=mp4]+ba[ext=m4a]/b[ext=mp4]"
-                cmd = f'yt-dlp {headers_arg} -f "{ytf}" "{url}" -o "{name}.mp4"'
-            elif "cloudfront.net" in url or ".m3u8" in url:
-                cmd = f'yt-dlp {headers_arg} -f "bestvideo[height<={raw_text2}]+bestaudio/best[height<={raw_text2}]/best" "{url}" -o "{name}.mp4"'
-            elif "jw-prod" in url:
-                cmd = f'yt-dlp {headers_arg} -o "{name}.mp4" "{url}"'
-            else:
-                cmd = f'yt-dlp {headers_arg} "{url}" -o "{name}.mp4"'
-
             try:
                 cc = f'**[{str(count).zfill(3)}]** {clean_title}\n\n**Batch »** {raw_text0}\n**Uploaded By »** {MR}'
                 cc1 = f'**[{str(count).zfill(3)}]** {clean_title}\n\n**Batch »** {raw_text0}\n**Uploaded By »** {MR}'
@@ -216,9 +184,44 @@ async def upload(bot: Client, m: Message):
                         await m.reply_text(f"**PDF Download Error:** {str(err)}\n**Name:** {name}\n**Link:** `{url}`")
                         continue
 
+                elif url.endswith(".mp4") or ".mp4?" in url:
+                    # Direct MP4 files bypass yt-dlp to prevent 403 Forbidden
+                    Show = f"**⬇️ DOWNLOADING... »**\n\n**Name »** {name}\n**Quality »** Direct MP4\n\n**URL »** {url}"
+                    prog = await m.reply_text(Show)
+                    filename = f"{name}.mp4"
+                    
+                    req_headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+                    with requests.get(url, headers=req_headers, stream=True, timeout=120) as r:
+                        r.raise_for_status()
+                        with open(filename, 'wb') as f_out:
+                            for chunk in r.iter_content(chunk_size=1024*1024):
+                                if chunk:
+                                    f_out.write(chunk)
+                                    
+                    await prog.delete(True)
+                    await helper.send_vid(bot, m, cc, filename, thumb, name, prog)
+                    count += 1
+                    time.sleep(1)
+
                 else:
                     Show = f"**⬇️ DOWNLOADING... »**\n\n**Name »** {name}\n**Quality »** {raw_text2}\n\n**URL »** {url}"
                     prog = await m.reply_text(Show)
+
+                    if "classplus" in url or "cloudfront" in url:
+                        headers_arg = '--force-ipv4 --no-check-certificates --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" --referer "https://web.classplusapp.com/"'
+                    else:
+                        headers_arg = '--force-ipv4 --no-check-certificates --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"'
+
+                    if "youtu" in url:
+                        ytf = f"b[height<={raw_text2}][ext=mp4]/bv[height<={raw_text2}][ext=mp4]+ba[ext=m4a]/b[ext=mp4]"
+                        cmd = f'yt-dlp {headers_arg} -f "{ytf}" "{url}" -o "{name}.mp4"'
+                    elif "cloudfront.net" in url or ".m3u8" in url:
+                        cmd = f'yt-dlp {headers_arg} -f "bestvideo[height<={raw_text2}]+bestaudio/best[height<={raw_text2}]/best" "{url}" -o "{name}.mp4"'
+                    elif "jw-prod" in url:
+                        cmd = f'yt-dlp {headers_arg} -o "{name}.mp4" "{url}"'
+                    else:
+                        cmd = f'yt-dlp {headers_arg} "{url}" -o "{name}.mp4"'
+
                     res_file = await helper.download_video(url, cmd, name)
                     filename = str(res_file) if res_file else f"{name}.mp4"
                     if not os.path.exists(filename) and os.path.exists(f"{name}.mp4"):
