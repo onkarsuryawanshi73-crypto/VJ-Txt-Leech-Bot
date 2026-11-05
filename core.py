@@ -140,19 +140,22 @@ def time_name():
     return f"{date} {current_time}.mp4"
 
 async def download_video(url, cmd, name):
-    download_cmd = f'{cmd} -R 25 --fragment-retries 25 --external-downloader aria2c --downloader-args "aria2c: -s 16 -x 16"'
-    print(download_cmd)
-    logging.info(download_cmd)
-    
-    # Run download command
+    download_dir = "./downloads"
+    if not os.path.exists(download_dir):
+        os.makedirs(download_dir)
+
     process = await asyncio.create_subprocess_shell(
         cmd,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE
     )
-    await process.communicate()
-    
-    # Check exact file paths
+    stdout, stderr = await process.communicate()
+
+    # Agar yt-dlp fail ho jaye toh exact error return karein
+    if process.returncode != 0:
+        err = stderr.decode().strip() if stderr else "Download error"
+        raise Exception(f"yt-dlp error: {err[:250]}")
+
     candidates = [
         f"{name}.mp4",
         f"{name}.mkv",
@@ -162,13 +165,12 @@ async def download_video(url, cmd, name):
     for cand in candidates:
         if os.path.isfile(cand):
             return cand
-            
-    # Search local directory if filename formatting differed
+
     for f in os.listdir("."):
         if f.startswith(name[:10]) and (f.endswith(".mp4") or f.endswith(".mkv") or f.endswith(".webm")):
             return f
-            
-    return f"{name}.mp4"
+
+    raise Exception("Download complete hua lekin local file nahi mili.")
 
 async def send_doc(bot: Client, m: Message, cc, ka, cc1, count, name):
     reply = await m.reply_text(f"**Uploading ... - {name}**")
